@@ -1,5 +1,0 @@
-# Never upload local secrets; Vercel env vars should supply DATABASE_URL, JWT_SECRET, etc.
-.env
-.env.*
-**/.env
-**/.env.*

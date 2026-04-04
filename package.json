@@ -1,33 +1,42 @@
 {
   "name": "shieldride",
-  "private": true,
   "version": "0.1.0",
-  "type": "module",
-  "workspaces": [
-    "apps/*",
-    "packages/*",
-    "services/*"
-  ],
+  "private": true,
   "scripts": {
-    "dev": "npm run dev -ws",
-    "dev:web": "concurrently -k -n api,web -c cyan,magenta \"npm run dev --workspace @shieldride/api\" \"npm run dev --workspace @shieldride/web\"",
-    "build": "npm run build -ws",
-    "lint": "npm run lint -ws",
-    "typecheck": "npm run typecheck -ws",
-    "format": "prettier -w .",
-    "db:migrate": "npm --workspace services/api run db:migrate",
-    "db:seed": "npm --workspace services/api run db:seed",
-    "ml:train": "python services/ml/scripts/generate_and_train.py",
-    "build:shared": "npm run build --workspace @shieldride/shared",
-    "build:web": "npm run build --workspace @shieldride/web",
-    "build:admin": "npm run build --workspace @shieldride/admin",
-    "build:api": "npm run build:shared && npm run build --workspace @shieldride/api",
-    "vercel:api:build": "npm run build:shared && npx prisma generate --schema=services/api/prisma/schema.prisma"
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.4",
+    "@radix-ui/react-label": "^2.1.1",
+    "@radix-ui/react-progress": "^1.1.1",
+    "@radix-ui/react-slot": "^1.1.1",
+    "@radix-ui/react-tabs": "^1.1.2",
+    "@radix-ui/react-tooltip": "^1.1.6",
+    "@supabase/supabase-js": "^2.47.10",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "jose": "^5.9.6",
+    "lucide-react": "^0.468.0",
+    "next": "^15.1.0",
+    "next-themes": "^0.4.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "recharts": "^2.15.0",
+    "tailwind-merge": "^2.6.0",
+    "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1",
-    "prettier": "^3.6.2",
-    "typescript": "^5.9.2"
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.1",
+    "@types/react-dom": "^19.0.2",
+    "autoprefixer": "^10.4.27",
+    "eslint": "^9.17.0",
+    "eslint-config-next": "^15.1.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2"
   }
 }
-
