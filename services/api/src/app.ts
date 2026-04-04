@@ -9,6 +9,7 @@ import { fail, ok } from './http/envelope.js'
 import adminRoutes from './routes/admin.js'
 import authRoutes from './routes/auth.js'
 import payoutsRoutes from './routes/payouts.js'
+import premiumRoutes from './routes/premium.js'
 import policiesRoutes from './routes/policies.js'
 import sensorsRoutes from './routes/sensors.js'
 import workersRoutes from './routes/workers.js'
@@ -60,6 +61,7 @@ export function createApp(): express.Express {
   app.use('/api/auth', authRoutes)
   app.use('/api/workers', workersRoutes)
   app.use('/api/policies', policiesRoutes)
+  app.use('/api/premium', premiumRoutes)
   app.use('/api/sensors', sensorsRoutes)
   app.use('/api/payouts', payoutsRoutes)
   app.use('/api/admin', adminRoutes)

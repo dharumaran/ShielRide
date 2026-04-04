@@ -1,8 +1,7 @@
 import { computeRiskScore } from '@shieldride/shared'
 import { Router } from 'express'
-import { prisma } from '../db.js'
 import { fail, ok } from '../http/envelope.js'
-import { getMockSensor } from '../services/sensorMock.js'
+import { resolveLatestSensorReading } from '../services/sensorReadings.js'
 import { evaluateTriggers } from '../services/triggerEngine.js'
 
 const router = Router()
@@ -10,40 +9,8 @@ const router = Router()
 router.get('/latest', async (req, res) => {
   try {
     const city = String(req.query['city'] ?? 'Mumbai')
-    const latest = await prisma.sensorReading.findFirst({
-      where: { city },
-      orderBy: { recordedAt: 'desc' },
-      select: {
-        id: true,
-        city: true,
-        pincode: true,
-        rainfallMmHr: true,
-        heatIndexC: true,
-        aqiScore: true,
-        cancelRatePct: true,
-        platformStatus: true,
-        orderDensity: true,
-        source: true,
-        recordedAt: true,
-      },
-    })
-
-    if (latest) {
-      res.json(ok(latest))
-      return
-    }
-    // Dev fallback mock for new city records
-    const mock = getMockSensor(city)
-    res.json(
-      ok({
-        id: 'mock',
-        city,
-        pincode: null,
-        ...mock,
-        source: 'platform',
-        recordedAt: new Date().toISOString(),
-      }),
-    )
+    const latest = await resolveLatestSensorReading(city)
+    res.json(ok(latest))
   } catch (error) {
     res.status(500).json(fail('SENSOR_LATEST_FAILED', 'Unable to fetch latest sensor data', error))
   }
@@ -52,15 +19,7 @@ router.get('/latest', async (req, res) => {
 router.get('/risk', async (req, res) => {
   try {
     const city = String(req.query['city'] ?? 'Mumbai')
-    const latest = await prisma.sensorReading.findFirst({
-      where: { city },
-      orderBy: { recordedAt: 'desc' },
-      select: { rainfallMmHr: true, heatIndexC: true, aqiScore: true, cancelRatePct: true, platformStatus: true },
-    })
-    if (!latest) {
-      res.status(404).json(fail('NOT_FOUND', 'No sensor data found for city'))
-      return
-    }
+    const latest = await resolveLatestSensorReading(city)
     const risk = computeRiskScore({
       rainfallMmHr: latest.rainfallMmHr,
       heatIndexC: latest.heatIndexC,
@@ -77,25 +36,14 @@ router.get('/risk', async (req, res) => {
 router.get('/triggers', async (req, res) => {
   try {
     const city = String(req.query['city'] ?? 'Mumbai')
-    const latest = await prisma.sensorReading.findFirst({
-      where: { city },
-      orderBy: { recordedAt: 'desc' },
-      select: {
-        rainfallMmHr: true,
-        heatIndexC: true,
-        aqiScore: true,
-        cancelRatePct: true,
-        platformStatus: true,
-        orderDensity: true,
-      },
-    })
-    if (!latest) {
-      res.status(404).json(fail('NOT_FOUND', 'No sensor data found for city'))
-      return
-    }
+    const latest = await resolveLatestSensorReading(city)
     const triggers = evaluateTriggers({
-      ...latest,
+      rainfallMmHr: latest.rainfallMmHr,
+      heatIndexC: latest.heatIndexC,
+      aqiScore: latest.aqiScore,
+      cancelRatePct: latest.cancelRatePct,
       platformStatus: latest.platformStatus as 'online' | 'degraded' | 'outage',
+      orderDensity: latest.orderDensity,
       now: new Date(),
       baselineIncomePaise: 65000,
       sustainedMinutes: {

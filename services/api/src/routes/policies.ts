@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { prisma } from '../db.js'
 import { fail, ok } from '../http/envelope.js'
 import { validateBody } from '../middleware/validate.js'
+import { resolveLatestSensorReading } from '../services/sensorReadings.js'
 
 const router = Router()
 const createSchema = z.object({ workerId: z.string().min(4), weekStart: z.string().datetime() })
@@ -19,15 +20,24 @@ router.post('/', validateBody(createSchema), async (req, res) => {
       res.status(404).json(fail('NOT_FOUND', 'Worker not found'))
       return
     }
-    const latest = await prisma.sensorReading.findFirst({
-      where: { city: worker.city },
-      orderBy: { recordedAt: 'desc' },
-      select: { rainfallMmHr: true, heatIndexC: true, aqiScore: true, cancelRatePct: true, platformStatus: true },
+    const existingActive = await prisma.policy.findFirst({
+      where: { workerId: worker.id, status: 'active' },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        premiumAmountPaise: true,
+        riskScore: true,
+        status: true,
+        weekStart: true,
+        weekEnd: true,
+        premiumPaidAt: true,
+      },
     })
-    if (!latest) {
-      res.status(400).json(fail('NO_SENSOR_DATA', 'No sensor data for city'))
+    if (existingActive) {
+      res.status(200).json(ok(existingActive))
       return
     }
+    const latest = await resolveLatestSensorReading(worker.city)
     const risk = computeRiskScore({
       rainfallMmHr: latest.rainfallMmHr,
       heatIndexC: latest.heatIndexC,

@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../db.js'
@@ -6,35 +7,62 @@ import { validateBody } from '../middleware/validate.js'
 
 const router = Router()
 
+const CITY_PINCODE: Record<string, string> = {
+  Chennai: '600001',
+  Mumbai: '400001',
+  Delhi: '110001',
+  Bengaluru: '560001',
+}
+
 const createWorkerSchema = z.object({
   phone: z.string().regex(/^\d{10}$/),
   name: z.string().min(2),
   city: z.string().min(2),
-  pincode: z.string().min(4),
-  platform: z.enum(['zepto', 'blinkit', 'swiggy']),
+  email: z.union([z.string().email(), z.literal('')]).optional(),
+  pincode: z.string().min(4).optional(),
+  platform: z.enum(['zepto', 'blinkit', 'swiggy']).optional().default('zepto'),
   upiHandle: z.string().min(3),
-  aadhaarLast4: z.string().regex(/^\d{4}$/),
-  baselineIncomeRupees: z.number().positive(),
+  aadhaarLast4: z.string().regex(/^\d{4}$/).optional(),
+  baselineIncomeRupees: z.number().positive().optional(),
   deviceFingerprint: z.string().optional(),
 })
 
+const patchWorkerSchema = z
+  .object({
+    name: z.string().min(2).optional(),
+    city: z.string().min(2).optional(),
+    pincode: z.string().min(4).optional(),
+    upiHandle: z.string().min(3).optional(),
+    email: z.union([z.string().email(), z.literal('')]).optional(),
+    platform: z.enum(['zepto', 'blinkit', 'swiggy']).optional(),
+  })
+  .strict()
+
 router.post('/', validateBody(createWorkerSchema), async (req, res) => {
   try {
-    const { baselineIncomeRupees, ...rest } = req.body
+    const { baselineIncomeRupees, email, pincode, aadhaarLast4, ...rest } = req.body
+    const resolvedPin = pincode ?? CITY_PINCODE[rest.city] ?? '400001'
+    const resolvedEmail = email === '' || email === undefined ? null : email
     const worker = await prisma.worker.create({
       data: {
         ...rest,
-        baselineIncomePaise: Math.round(baselineIncomeRupees * 100),
+        email: resolvedEmail,
+        pincode: resolvedPin,
+        aadhaarLast4: aadhaarLast4 ?? '0000',
+        baselineIncomePaise: Math.round((baselineIncomeRupees ?? 650) * 100),
       },
-      select: { id: true, name: true, city: true, platform: true, phone: true },
+      select: { id: true, name: true, city: true, platform: true, phone: true, email: true, upiHandle: true },
     })
     res.status(201).json(ok(worker))
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      res.status(409).json(fail('DUPLICATE_PHONE', 'This number is already registered. Use Existing user to sign in.'))
+      return
+    }
     res.status(500).json(fail('WORKER_CREATE_FAILED', 'Unable to create worker', error))
   }
 })
 
-// Register static path segments before `/:id` to avoid router edge cases.
 router.get('/:id/income', async (_req, res) => {
   try {
     const history = [
@@ -63,6 +91,10 @@ router.get('/:id', async (req, res) => {
         city: true,
         platform: true,
         status: true,
+        phone: true,
+        email: true,
+        upiHandle: true,
+        pincode: true,
         baselineIncomePaise: true,
         policies: {
           where: { status: 'active' },
@@ -82,12 +114,25 @@ router.get('/:id', async (req, res) => {
   }
 })
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', validateBody(patchWorkerSchema), async (req, res) => {
   try {
+    const id = String(req.params['id'])
+    const patch: z.infer<typeof patchWorkerSchema> = req.body
+    const data: Record<string, unknown> = {}
+    if (patch.name !== undefined) data['name'] = patch.name
+    if (patch.city !== undefined) data['city'] = patch.city
+    if (patch.pincode !== undefined) data['pincode'] = patch.pincode
+    if (patch.upiHandle !== undefined) data['upiHandle'] = patch.upiHandle
+    if (patch.platform !== undefined) data['platform'] = patch.platform
+    if (patch.email !== undefined) data['email'] = patch.email === '' ? null : patch.email
+    if (patch.city !== undefined && patch.pincode === undefined) {
+      const p = CITY_PINCODE[patch.city]
+      if (p) data['pincode'] = p
+    }
     const worker = await prisma.worker.update({
-      where: { id: req.params.id },
-      data: req.body,
-      select: { id: true, name: true, city: true, platform: true, status: true },
+      where: { id },
+      data,
+      select: { id: true, name: true, city: true, platform: true, status: true, upiHandle: true, email: true, pincode: true },
     })
     res.json(ok(worker))
   } catch (error) {
@@ -96,4 +141,3 @@ router.put('/:id', async (req, res) => {
 })
 
 export default router
-

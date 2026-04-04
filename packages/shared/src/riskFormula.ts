@@ -1,5 +1,11 @@
 import type { PlatformStatus, RiskScoreResult } from './types.js'
 
+/** README α; base chosen so P_w stays in the advertised ₹20–₹50 band for R_w ∈ [0, 1]. */
+export const WEEKLY_PREMIUM_ALPHA = 0.7
+export const WEEKLY_PREMIUM_BASE = 30
+export const WEEKLY_PREMIUM_MIN = 20
+export const WEEKLY_PREMIUM_MAX = 50
+
 function clamp01(n: number): number {
   if (Number.isNaN(n)) return 0
   if (n < 0) return 0
@@ -24,9 +30,9 @@ export function computeRiskScore(inputs: RiskInputs): RiskScoreResult {
 
   const riskScore = clamp01(R * 0.25 + H * 0.15 + A * 0.1 + O * 0.2 + C * 0.15)
 
-  // P_w = min( round(75 × (1 + 0.7 × R_w)), 120 ) with floor ₹80, cap ₹120
-  const raw = Math.round(75 * (1 + 0.7 * riskScore))
-  const premiumRupees = Math.min(Math.max(raw, 80), 120)
+  // README: P_w = P_base × (1 + α × R_w). Product onboarding band: ₹20–₹50/week.
+  const raw = Math.round(WEEKLY_PREMIUM_BASE * (1 + WEEKLY_PREMIUM_ALPHA * riskScore))
+  const premiumRupees = Math.min(Math.max(raw, WEEKLY_PREMIUM_MIN), WEEKLY_PREMIUM_MAX)
   const premiumPaise = premiumRupees * 100
 
   return {

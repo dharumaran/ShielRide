@@ -20,10 +20,23 @@ router.post('/send-otp', validateBody(sendOtpSchema), async (req, res) => {
 
 router.post('/verify-otp', validateBody(verifyOtpSchema), async (req, res) => {
   try {
-    const { phone } = req.body
+    const { phone, otp } = req.body
+    const demoOtp = process.env['DEMO_OTP']?.trim() || '123456'
+    if (otp !== demoOtp) {
+      res.status(401).json(fail('INVALID_OTP', 'Wrong OTP. Use the code we sent (demo: 123456).'))
+      return
+    }
     const worker = await prisma.worker.findUnique({
       where: { phone },
-      select: { id: true, name: true, city: true, platform: true, phone: true },
+      select: {
+        id: true,
+        name: true,
+        city: true,
+        platform: true,
+        phone: true,
+        upiHandle: true,
+        email: true,
+      },
     })
     const secret = process.env['JWT_SECRET']
     if (!secret) {

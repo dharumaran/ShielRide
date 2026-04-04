@@ -1,4 +1,4 @@
-export const CITIES = ['Mumbai', 'Delhi', 'Bengaluru'] as const
+export const CITIES = ['Chennai', 'Mumbai', 'Delhi', 'Bengaluru'] as const
 export const PLATFORMS = ['zepto', 'blinkit', 'swiggy'] as const
 
 export const DEMO_PHONE = '9999990001'

@@ -22,6 +22,10 @@ export type WorkerProfile = {
   city: string
   platform: string
   status: string
+  phone: string
+  email: string | null
+  upiHandle: string
+  pincode: string
   baselineIncomePaise: number
   policies: Array<{
     id: string

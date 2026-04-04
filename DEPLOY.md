@@ -31,6 +31,7 @@ Environment variables (API project):
 
 - `DATABASE_URL` (required for DB routes; use Neon/Supabase pooled URL for serverless)
 - `JWT_SECRET` (required for OTP verify)
+- `OPENWEATHER_API_KEY` (optional but recommended) — live rainfall, heat (feels-like), and AQI from [OpenWeather](https://openweathermap.org/api) Current Weather + Air Pollution; without it the API uses the latest DB seed row, then mock drift
 - `ANTHROPIC_API_KEY` (optional, admin AI)
 - `CORS_ORIGIN` (optional) — comma-separated origins, e.g. your web + admin Vercel URLs
 

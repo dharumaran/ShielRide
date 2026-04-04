@@ -1,6 +1,7 @@
 import type { RiskScoreResult, TriggerActive } from '@shieldride/shared'
 import axios, { type AxiosError, type AxiosResponse } from 'axios'
 import type { ApiEnvelope, IncomeDay, PayoutRow, SensorLatest, WorkerProfile } from '@/types'
+import { useWorkerStore } from '@/stores/workerStore'
 
 // If VITE_API_URL is set, use it in dev and prod (works even when Vite’s /api proxy isn’t used).
 // If unset in dev, use same-origin `/api` so Vite can proxy (good for phone-on-LAN: open http://<PC-IP>:5173).
@@ -12,6 +13,14 @@ export const api = axios.create({
   timeout: 25_000,
   // Our API returns JSON envelopes for 4xx/5xx; parse them instead of Axios' generic "status code 404".
   validateStatus: () => true,
+})
+
+api.interceptors.request.use((config) => {
+  const token = useWorkerStore.getState().token
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
 })
 
 function isEnvelope(x: unknown): x is ApiEnvelope<unknown> {
@@ -68,7 +77,15 @@ export const sensorsApi = {
 
 export type VerifyOtpData = {
   token: string
-  worker: { id: string; name: string; city: string; platform: string; phone: string } | null
+  worker: {
+    id: string
+    name: string
+    city: string
+    platform: string
+    phone: string
+    upiHandle: string
+    email: string | null
+  } | null
 }
 
 export const authApi = {
@@ -77,21 +94,41 @@ export const authApi = {
     unwrap<VerifyOtpData>(api.post('/api/auth/verify-otp', { phone, otp })),
 }
 
+export const premiumApi = {
+  calculate: (city: string) =>
+    unwrap<{ weeklyPremiumRupees: number; city: string }>(api.post('/api/premium/calculate', { city })),
+}
+
 export const workersApi = {
   get: (id: string) => unwrap<WorkerProfile>(api.get(`/api/workers/${id}`)),
   create: (body: {
     phone: string
     name: string
     city: string
-    pincode: string
-    platform: 'zepto' | 'blinkit' | 'swiggy'
+    email?: string
+    pincode?: string
+    platform?: 'zepto' | 'blinkit' | 'swiggy'
     upiHandle: string
-    aadhaarLast4: string
-    baselineIncomeRupees: number
+    aadhaarLast4?: string
+    baselineIncomeRupees?: number
     deviceFingerprint?: string
   }) =>
-    unwrap<{ id: string; name: string; city: string; platform: string; phone: string }>(
+    unwrap<{ id: string; name: string; city: string; platform: string; phone: string; email?: string | null; upiHandle?: string }>(
       api.post('/api/workers', body),
+    ),
+  update: (
+    id: string,
+    body: Partial<{
+      name: string
+      city: string
+      pincode: string
+      upiHandle: string
+      email: string
+      platform: 'zepto' | 'blinkit' | 'swiggy'
+    }>,
+  ) =>
+    unwrap<{ id: string; name: string; city: string; platform: string; upiHandle: string; email?: string | null; pincode?: string }>(
+      api.put(`/api/workers/${id}`, body),
     ),
   income: (id: string) => unwrap<IncomeDay[]>(api.get(`/api/workers/${id}/income`)),
 }
